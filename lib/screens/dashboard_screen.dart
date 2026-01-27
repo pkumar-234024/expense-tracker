@@ -119,7 +119,7 @@ class DashboardScreen extends StatelessWidget {
           body: CustomScrollView(
             slivers: [
               SliverAppBar(
-                expandedHeight: 220.0,
+                expandedHeight: 190.0,
                 floating: false,
                 pinned: true,
                 flexibleSpace: FlexibleSpaceBar(
@@ -143,36 +143,35 @@ class DashboardScreen extends StatelessWidget {
                                 : 'Remaining Budget',
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.7),
-                              fontSize: 16,
+                              fontSize: 17,
                             ),
                           ),
-                          const SizedBox(height: 8),
                           Text(
                             '₹${provider.remainingBudget.toStringAsFixed(0)}',
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 44,
+                              fontSize: 30,
                               fontWeight: FontWeight.bold,
                             ),
                           ).animate().fadeIn().scale(),
-                          const SizedBox(height: 12),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
+                              horizontal: 10,
+                              vertical: 7,
                             ),
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(18),
                             ),
                             child: Text(
                               'Spent: ₹${provider.totalForSelectedPerson.toStringAsFixed(0)} / ₹${provider.monthlyBudget.toStringAsFixed(0)}',
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontWeight: FontWeight.w500,
+                                fontSize: 18,
                               ),
                             ),
                           ),
+                          const SizedBox(height: 30),
                         ],
                       ),
                     ),
