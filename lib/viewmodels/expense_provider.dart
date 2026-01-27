@@ -19,9 +19,29 @@ class ExpenseProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> addPerson(String name, String avatar) async {
-    final newPerson = Person(name: name, avatar: avatar);
+  Future<void> addPerson(String name, String avatar, double budget) async {
+    final newPerson = Person(name: name, avatar: avatar, monthlyBudget: budget);
     await _dbHelper.insertPerson(newPerson);
+    await fetchPersons();
+  }
+
+  Future<void> updatePersonBudget(String id, double budget) async {
+    final person = _persons.firstWhere((p) => p.id == id);
+    final updatedPerson = Person(
+      id: person.id,
+      name: person.name,
+      avatar: person.avatar,
+      monthlyBudget: budget,
+    );
+    await _dbHelper.insertPerson(updatedPerson);
+    if (_selectedPerson?.id == id) {
+      _selectedPerson = updatedPerson;
+    }
+    await fetchPersons();
+  }
+
+  Future<void> deletePerson(String id) async {
+    await _dbHelper.deletePerson(id);
     await fetchPersons();
   }
 
@@ -36,7 +56,12 @@ class ExpenseProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> addExpense(String title, double amount, String category) async {
+  Future<void> addExpense(
+    String title,
+    double amount,
+    String category,
+    DateTime date,
+  ) async {
     if (_selectedPerson == null) return;
 
     final newExpense = Expense(
@@ -44,11 +69,18 @@ class ExpenseProvider with ChangeNotifier {
       title: title,
       amount: amount,
       category: category,
-      date: DateTime.now(),
+      date: date,
     );
 
     await _dbHelper.insertExpense(newExpense);
     await fetchExpenses(_selectedPerson!.id);
+  }
+
+  Future<void> updateExpense(Expense expense) async {
+    await _dbHelper.insertExpense(expense);
+    if (_selectedPerson != null) {
+      await fetchExpenses(_selectedPerson!.id);
+    }
   }
 
   Future<void> removeExpense(String id) async {
@@ -60,6 +92,12 @@ class ExpenseProvider with ChangeNotifier {
 
   double get totalForSelectedPerson {
     return _expenses.fold(0.0, (sum, item) => sum + item.amount);
+  }
+
+  double get monthlyBudget => _selectedPerson?.monthlyBudget ?? 10000.0;
+
+  double get remainingBudget {
+    return monthlyBudget - totalForSelectedPerson;
   }
 
   void logout() {

@@ -5,20 +5,103 @@ import '../widgets/expense_card.dart';
 import '../widgets/add_expense_form.dart';
 import '../core/app_theme.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../models/expense.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
-  void _showAddExpenseModal(BuildContext context) {
+  void _showAddExpenseModal(BuildContext context, {Expense? existingExpense}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => AddExpenseForm(
-        onSave: (title, amount, category) {
-          context.read<ExpenseProvider>().addExpense(title, amount, category);
+        existingExpense: existingExpense,
+        onSave: (title, amount, category, date) {
+          final provider = context.read<ExpenseProvider>();
+          if (existingExpense != null) {
+            final updatedExpense = Expense(
+              id: existingExpense.id,
+              personId: existingExpense.personId,
+              title: title,
+              amount: amount,
+              category: category,
+              date: date,
+            );
+            provider.updateExpense(updatedExpense);
+          } else {
+            provider.addExpense(title, amount, category, date);
+          }
           Navigator.pop(context);
         },
+      ),
+    );
+  }
+
+  void _showEditBudgetDialog(BuildContext context) {
+    final provider = context.read<ExpenseProvider>();
+    final controller = TextEditingController(
+      text: provider.monthlyBudget.toString(),
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.surfaceColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        title: const Text(
+          'Edit Monthly Budget',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: 'New Budget',
+            prefixText: '₹ ',
+            filled: true,
+            fillColor: Colors.white.withValues(alpha: 0.05),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () {
+              final budget = double.tryParse(controller.text);
+              if (budget != null && provider.selectedPerson != null) {
+                provider.updatePersonBudget(
+                  provider.selectedPerson!.id,
+                  budget,
+                );
+                Navigator.pop(context);
+              }
+            },
+            child: const Text(
+              'Update',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -30,6 +113,8 @@ class DashboardScreen extends StatelessWidget {
         final person = provider.selectedPerson;
         if (person == null) return const Scaffold();
 
+        final isOverBudget = provider.remainingBudget < 0;
+
         return Scaffold(
           body: CustomScrollView(
             slivers: [
@@ -39,11 +124,13 @@ class DashboardScreen extends StatelessWidget {
                 pinned: true,
                 flexibleSpace: FlexibleSpaceBar(
                   background: Container(
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [AppTheme.primaryColor, Color(0xFF4F46E5)],
+                        colors: isOverBudget
+                            ? [const Color(0xFFEF4444), const Color(0xFF991B1B)]
+                            : [AppTheme.primaryColor, const Color(0xFF4F46E5)],
                       ),
                     ),
                     child: SafeArea(
@@ -51,21 +138,41 @@ class DashboardScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            'Total Balance',
+                            isOverBudget
+                                ? 'Budget Exceeded'
+                                : 'Remaining Budget',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
+                              color: Colors.white.withValues(alpha: 0.7),
                               fontSize: 16,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            '₹${provider.totalForSelectedPerson.toStringAsFixed(2)}',
+                            '₹${provider.remainingBudget.toStringAsFixed(0)}',
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 40,
+                              fontSize: 44,
                               fontWeight: FontWeight.bold,
                             ),
                           ).animate().fadeIn().scale(),
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              'Spent: ₹${provider.totalForSelectedPerson.toStringAsFixed(0)} / ₹${provider.monthlyBudget.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -74,6 +181,11 @@ class DashboardScreen extends StatelessWidget {
                   centerTitle: true,
                 ),
                 actions: [
+                  IconButton(
+                    icon: const Icon(Icons.edit_note_rounded),
+                    onPressed: () => _showEditBudgetDialog(context),
+                    tooltip: 'Edit Budget',
+                  ),
                   IconButton(
                     icon: const Icon(Icons.logout),
                     onPressed: () {
@@ -98,7 +210,9 @@ class DashboardScreen extends StatelessWidget {
                       ),
                       Text(
                         '${provider.expenses.length} items',
-                        style: TextStyle(color: Colors.white.withOpacity(0.5)),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.5),
+                        ),
                       ),
                     ],
                   ),
@@ -114,13 +228,13 @@ class DashboardScreen extends StatelessWidget {
                         Icon(
                           Icons.receipt_long_outlined,
                           size: 64,
-                          color: Colors.white.withOpacity(0.1),
+                          color: Colors.white.withValues(alpha: 0.1),
                         ),
                         const SizedBox(height: 16),
                         Text(
                           'No expenses yet',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.3),
+                            color: Colors.white.withValues(alpha: 0.3),
                           ),
                         ),
                       ],
@@ -136,6 +250,10 @@ class DashboardScreen extends StatelessWidget {
                       return ExpenseCard(
                         expense: expense,
                         onDelete: () => provider.removeExpense(expense.id),
+                        onEdit: () => _showAddExpenseModal(
+                          context,
+                          existingExpense: expense,
+                        ),
                       );
                     }, childCount: provider.expenses.length),
                   ),
@@ -145,7 +263,9 @@ class DashboardScreen extends StatelessWidget {
           ),
           floatingActionButton: FloatingActionButton.extended(
             onPressed: () => _showAddExpenseModal(context),
-            backgroundColor: AppTheme.accentColor,
+            backgroundColor: isOverBudget
+                ? const Color(0xFFEF4444)
+                : AppTheme.accentColor,
             elevation: 8,
             icon: const Icon(Icons.add_rounded, color: Colors.white),
             label: const Text(

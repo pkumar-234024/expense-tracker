@@ -7,8 +7,14 @@ import '../core/app_theme.dart';
 class ExpenseCard extends StatelessWidget {
   final Expense expense;
   final VoidCallback onDelete;
+  final VoidCallback onEdit;
 
-  const ExpenseCard({super.key, required this.expense, required this.onDelete});
+  const ExpenseCard({
+    super.key,
+    required this.expense,
+    required this.onDelete,
+    required this.onEdit,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -66,14 +72,28 @@ class ExpenseCard extends StatelessWidget {
                   color: Colors.white,
                 ),
               ),
-              IconButton(
-                icon: const Icon(
-                  Icons.delete_outline,
-                  size: 20,
-                  color: AppTheme.errorColor,
-                ),
-                onPressed: onDelete,
-                visualDensity: VisualDensity.compact,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      Icons.edit_outlined,
+                      size: 18,
+                      color: Colors.white.withValues(alpha: 0.5),
+                    ),
+                    onPressed: onEdit,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      size: 18,
+                      color: AppTheme.errorColor,
+                    ),
+                    onPressed: onDelete,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
               ),
             ],
           ),
