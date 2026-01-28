@@ -2,6 +2,8 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/person.dart';
 import '../models/expense.dart';
+import '../models/debt.dart';
+import '../models/repayment.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -21,7 +23,7 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'expense_tracker.db');
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -32,6 +34,30 @@ class DatabaseHelper {
       await db.execute(
         'ALTER TABLE persons ADD COLUMN monthlyBudget REAL DEFAULT 10000.0',
       );
+    }
+    if (oldVersion < 3) {
+      await db.execute('''
+        CREATE TABLE debts(
+          id TEXT PRIMARY KEY,
+          personId TEXT,
+          borrowerName TEXT,
+          amount REAL,
+          date TEXT,
+          notes TEXT,
+          isCompleted INTEGER DEFAULT 0,
+          FOREIGN KEY (personId) REFERENCES persons (id) ON DELETE CASCADE
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE repayments(
+          id TEXT PRIMARY KEY,
+          debtId TEXT,
+          amount REAL,
+          date TEXT,
+          notes TEXT,
+          FOREIGN KEY (debtId) REFERENCES debts (id) ON DELETE CASCADE
+        )
+      ''');
     }
   }
 
@@ -53,6 +79,28 @@ class DatabaseHelper {
         category TEXT,
         date TEXT,
         FOREIGN KEY (personId) REFERENCES persons (id) ON DELETE CASCADE
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE debts(
+        id TEXT PRIMARY KEY,
+        personId TEXT,
+        borrowerName TEXT,
+        amount REAL,
+        date TEXT,
+        notes TEXT,
+        isCompleted INTEGER DEFAULT 0,
+        FOREIGN KEY (personId) REFERENCES persons (id) ON DELETE CASCADE
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE repayments(
+        id TEXT PRIMARY KEY,
+        debtId TEXT,
+        amount REAL,
+        date TEXT,
+        notes TEXT,
+        FOREIGN KEY (debtId) REFERENCES debts (id) ON DELETE CASCADE
       )
     ''');
   }
@@ -113,5 +161,67 @@ class DatabaseHelper {
     return result.first['total'] != null
         ? result.first['total'] as double
         : 0.0;
+  }
+
+  // Debt operations
+  Future<void> insertDebt(Debt debt) async {
+    final db = await database;
+    await db.insert(
+      'debts',
+      debt.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<Debt>> getDebts(String personId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'debts',
+      where: 'personId = ?',
+      whereArgs: [personId],
+      orderBy: 'date DESC',
+    );
+    return List.generate(maps.length, (i) => Debt.fromMap(maps[i]));
+  }
+
+  Future<void> deleteDebt(String id) async {
+    final db = await database;
+    await db.delete('debts', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> updateDebtCompletion(String id, bool isCompleted) async {
+    final db = await database;
+    await db.update(
+      'debts',
+      {'isCompleted': isCompleted ? 1 : 0},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // Repayment operations
+  Future<void> insertRepayment(Repayment repayment) async {
+    final db = await database;
+    await db.insert(
+      'repayments',
+      repayment.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<Repayment>> getRepayments(String debtId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'repayments',
+      where: 'debtId = ?',
+      whereArgs: [debtId],
+      orderBy: 'date DESC',
+    );
+    return List.generate(maps.length, (i) => Repayment.fromMap(maps[i]));
+  }
+
+  Future<void> deleteRepayment(String id) async {
+    final db = await database;
+    await db.delete('repayments', where: 'id = ?', whereArgs: [id]);
   }
 }
