@@ -3,20 +3,25 @@ import '../models/person.dart';
 import '../models/expense.dart';
 import '../models/debt.dart';
 import '../models/repayment.dart';
+import '../models/todo.dart';
 import '../services/database_helper.dart';
+import '../services/notification_service.dart';
 
 class ExpenseProvider with ChangeNotifier {
   final DatabaseHelper _dbHelper = DatabaseHelper();
+  final NotificationService _notificationService = NotificationService();
 
   List<Person> _persons = [];
   List<Expense> _expenses = [];
   List<Debt> _debts = [];
+  List<Todo> _todos = [];
   final Map<String, List<Repayment>> _repayments = {};
   Person? _selectedPerson;
 
   List<Person> get persons => _persons;
   List<Expense> get expenses => _expenses;
   List<Debt> get debts => _debts;
+  List<Todo> get todos => _todos;
   Person? get selectedPerson => _selectedPerson;
 
   List<Repayment> getRepaymentsForDebt(String debtId) {
@@ -65,7 +70,14 @@ class ExpenseProvider with ChangeNotifier {
     _selectedPerson = person;
     await fetchExpenses(person.id);
     await fetchDebts(person.id);
+    await fetchTodos(person.id);
     notifyListeners();
+
+    await _notificationService.showInstantNotification(
+      id: 1,
+      title: 'Welcome back, ${person.name}!',
+      body: 'Ready to manage your finances?',
+    );
   }
 
   Future<void> fetchExpenses(String personId) async {
@@ -104,6 +116,65 @@ class ExpenseProvider with ChangeNotifier {
     await _dbHelper.deleteExpense(id);
     if (_selectedPerson != null) {
       await fetchExpenses(_selectedPerson!.id);
+    }
+  }
+
+  // Todo methods
+  Future<void> fetchTodos(String personId) async {
+    _todos = await _dbHelper.getTodos(personId);
+    notifyListeners();
+  }
+
+  Future<void> addTodo(
+    String task,
+    String? description,
+    DateTime? dueDate,
+  ) async {
+    if (_selectedPerson == null) return;
+    final todo = Todo(
+      personId: _selectedPerson!.id,
+      task: task,
+      description: description,
+      dueDate: dueDate,
+    );
+    await _dbHelper.insertTodo(todo);
+    await fetchTodos(_selectedPerson!.id);
+
+    if (dueDate != null) {
+      // Schedule morning reminder on due date
+      final reminderTime = DateTime(
+        dueDate.year,
+        dueDate.month,
+        dueDate.day,
+        9, // 9 AM
+      );
+
+      if (reminderTime.isAfter(DateTime.now())) {
+        await _notificationService.scheduleNotification(
+          id: todo.id.hashCode,
+          title: 'Task Reminder',
+          body: 'Pending: $task',
+          scheduledDate: reminderTime,
+        );
+      }
+    }
+  }
+
+  Future<void> toggleTodo(String id, bool isCompleted) async {
+    await _dbHelper.updateTodoStatus(id, isCompleted);
+    if (isCompleted) {
+      await _notificationService.cancelNotification(id: id.hashCode);
+    }
+    if (_selectedPerson != null) {
+      await fetchTodos(_selectedPerson!.id);
+    }
+  }
+
+  Future<void> removeTodo(String id) async {
+    await _dbHelper.deleteTodo(id);
+    await _notificationService.cancelNotification(id: id.hashCode);
+    if (_selectedPerson != null) {
+      await fetchTodos(_selectedPerson!.id);
     }
   }
 

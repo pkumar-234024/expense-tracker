@@ -261,6 +261,7 @@ class DashboardScreen extends StatelessWidget {
             ],
           ),
           floatingActionButton: FloatingActionButton.extended(
+            heroTag: 'dashboard_fab',
             onPressed: () => _showAddExpenseModal(context),
             backgroundColor: isOverBudget
                 ? const Color(0xFFEF4444)

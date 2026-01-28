@@ -4,6 +4,7 @@ import '../models/person.dart';
 import '../models/expense.dart';
 import '../models/debt.dart';
 import '../models/repayment.dart';
+import '../models/todo.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -23,7 +24,7 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'expense_tracker.db');
     return await openDatabase(
       path,
-      version: 3,
+      version: 5,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -58,6 +59,22 @@ class DatabaseHelper {
           FOREIGN KEY (debtId) REFERENCES debts (id) ON DELETE CASCADE
         )
       ''');
+    }
+    if (oldVersion < 4) {
+      await db.execute('''
+        CREATE TABLE todos(
+          id TEXT PRIMARY KEY,
+          personId TEXT,
+          task TEXT,
+          isCompleted INTEGER DEFAULT 0,
+          dueDate TEXT,
+          FOREIGN KEY (personId) REFERENCES persons (id) ON DELETE CASCADE
+        )
+      ''');
+    }
+    if (oldVersion < 5) {
+      // Add description column to todos table
+      await db.execute('ALTER TABLE todos ADD COLUMN description TEXT');
     }
   }
 
@@ -101,6 +118,17 @@ class DatabaseHelper {
         date TEXT,
         notes TEXT,
         FOREIGN KEY (debtId) REFERENCES debts (id) ON DELETE CASCADE
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE todos(
+        id TEXT PRIMARY KEY,
+        personId TEXT,
+        task TEXT,
+        description TEXT,
+        isCompleted INTEGER DEFAULT 0,
+        dueDate TEXT,
+        FOREIGN KEY (personId) REFERENCES persons (id) ON DELETE CASCADE
       )
     ''');
   }
@@ -223,5 +251,41 @@ class DatabaseHelper {
   Future<void> deleteRepayment(String id) async {
     final db = await database;
     await db.delete('repayments', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // Todo operations
+  Future<void> insertTodo(Todo todo) async {
+    final db = await database;
+    await db.insert(
+      'todos',
+      todo.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<Todo>> getTodos(String personId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'todos',
+      where: 'personId = ?',
+      whereArgs: [personId],
+      orderBy: 'isCompleted ASC, dueDate ASC',
+    );
+    return List.generate(maps.length, (i) => Todo.fromMap(maps[i]));
+  }
+
+  Future<void> updateTodoStatus(String id, bool isCompleted) async {
+    final db = await database;
+    await db.update(
+      'todos',
+      {'isCompleted': isCompleted ? 1 : 0},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> deleteTodo(String id) async {
+    final db = await database;
+    await db.delete('todos', where: 'id = ?', whereArgs: [id]);
   }
 }

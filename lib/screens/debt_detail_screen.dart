@@ -205,6 +205,7 @@ class DebtDetailScreen extends StatelessWidget {
           ),
           floatingActionButton: remaining > 0
               ? FloatingActionButton.extended(
+                  heroTag: 'repayment_fab',
                   onPressed: () => _showAddRepaymentDialog(context, provider),
                   backgroundColor: Colors.greenAccent,
                   icon: const Icon(Icons.add_rounded, color: Colors.black),

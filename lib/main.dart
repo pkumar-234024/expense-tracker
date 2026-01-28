@@ -3,9 +3,11 @@ import 'package:provider/provider.dart';
 import 'viewmodels/expense_provider.dart';
 import 'screens/profile_selection_screen.dart';
 import 'core/app_theme.dart';
+import 'services/notification_service.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService().init();
   runApp(
     MultiProvider(
       providers: [ChangeNotifierProvider(create: (_) => ExpenseProvider())],

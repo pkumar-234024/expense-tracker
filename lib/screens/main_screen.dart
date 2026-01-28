@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dashboard_screen.dart';
 import 'statistics_screen.dart';
 import 'debts_screen.dart';
+import 'todo_screen.dart';
 import '../core/app_theme.dart';
 
 class MainScreen extends StatefulWidget {
@@ -17,6 +18,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _screens = [
     const DashboardScreen(),
     const DebtsScreen(),
+    const TodoScreen(),
     const StatisticsScreen(),
   ];
 
@@ -42,15 +44,19 @@ class _MainScreenState extends State<MainScreen> {
           items: const [
             BottomNavigationBarItem(
               icon: Icon(Icons.dashboard_rounded),
-              label: 'Dashboard',
+              label: 'Home',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.handshake_rounded),
               label: 'Lending',
             ),
             BottomNavigationBarItem(
+              icon: Icon(Icons.task_alt_rounded),
+              label: 'Tasks',
+            ),
+            BottomNavigationBarItem(
               icon: Icon(Icons.pie_chart_rounded),
-              label: 'Statistics',
+              label: 'Stats',
             ),
           ],
         ),

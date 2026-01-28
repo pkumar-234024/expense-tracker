@@ -155,6 +155,7 @@ class DebtsScreen extends StatelessWidget {
             ],
           ),
           floatingActionButton: FloatingActionButton(
+            heroTag: 'debts_fab',
             onPressed: () => _showAddDebtDialog(context),
             backgroundColor: AppTheme.primaryColor,
             child: const Icon(Icons.person_add_rounded, color: Colors.white),
